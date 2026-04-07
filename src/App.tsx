@@ -1,19 +1,20 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { 
-  Plus, Trash2, Edit3, X, Save, ChevronDown, ChevronRight, 
-  Download, Check, MoreHorizontal, FolderOpen, Square, 
-  CheckSquare, List, Columns3, Search, Calendar, 
-  Filter, LayoutDashboard, Settings, AlertTriangle,
+import { useState, useMemo, useEffect } from "react";
+import {
+  Plus, Trash2, Edit3, X, Save, ChevronDown, ChevronRight,
+  Download, Check, MoreHorizontal, FolderOpen, Square,
+  CheckSquare, List, Columns3, Search, Calendar,
+  Filter, LayoutDashboard, AlertTriangle,
   Maximize2, Minimize2, Tag, Moon, Sun, GripVertical, Eye, LogOut, User as UserIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "./AuthContext";
-import { db, auth, collection, doc, setDoc, onSnapshot, query, where, deleteDoc } from "./firebase";
+import { db, auth, collection, doc, setDoc, onSnapshot, query, deleteDoc } from "./firebase";
+import { useThrowAsyncError, handleFirestoreError, OperationType } from "./errors";
 import { MentionsInput, Mention } from 'react-mentions';
 
 // --- Utilities ---
-function uid() { 
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); 
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
 function renderNotesWithMentions(notes: string) {
@@ -31,68 +32,6 @@ function renderNotesWithMentions(notes: string) {
     }
     return <span key={i}>{part}</span>;
   });
-}
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-export function useThrowAsyncError() {
-  const [_, setError] = useState();
-  return useCallback((e: unknown) => {
-    setError(() => { throw e; });
-  }, []);
-}
-
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, throwError?: (e: unknown) => void) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  if (throwError) {
-    throwError(new Error(JSON.stringify(errInfo)));
-  } else {
-    throw new Error(JSON.stringify(errInfo));
-  }
 }
 
 function getDueDateColor(dueDate: string, isDone: boolean) {
@@ -121,33 +60,6 @@ const PRIORITIES = {
   medium: { label: "中優先", color: "bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" },
   low: { label: "低優先", color: "bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800" },
 };
-
-const INIT_PROJECTS = [
-  {
-    id: "p1",
-    name: "FY26 NMC 專案",
-    columns: [
-      { id: "col1", name: "未開始", color: "#94a3b8" },
-      { id: "col2", name: "進行中", color: "#3b82f6" },
-    ],
-    tasks: [
-      { 
-        id: "t1", title: "確認場地需求與報價", columnId: "col1", priority: "high",
-        checklist: [{ id: "c1", text: "聯繫飯店窗口", done: true }, { id: "c2", text: "比較三家報價", done: false }], 
-        notes: "桃園大溪威斯汀", createdAt: "2025-07-01", dueDate: "2025-08-15", completedAt: "", tags: ["場地", "預算"]
-      },
-      { 
-        id: "t2", title: "設計課前問卷", columnId: "col2", priority: "medium",
-        checklist: [{ id: "c3", text: "擬定問題", done: true }, { id: "c4", text: "測試表單", done: false }], 
-        notes: "", createdAt: "2025-07-10", dueDate: "2025-08-20", completedAt: "", tags: ["設計"]
-      },
-      { 
-        id: "t3", title: "完成主視覺初版", columnId: "__done__", priority: "low",
-        checklist: [], notes: "已定稿", createdAt: "2025-06-15", dueDate: "2025-07-20", completedAt: "2025-07-20", tags: ["設計", "前端"]
-      },
-    ],
-  },
-];
 
 const DONE_COL_ID = "__done__";
 
