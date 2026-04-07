@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "./AuthContext";
 import { db, auth, collection, doc, setDoc, onSnapshot, query, deleteDoc } from "./firebase";
 import { useThrowAsyncError, handleFirestoreError, OperationType } from "./errors";
-import { MentionsInput, Mention } from 'react-mentions';
 
 // --- Utilities ---
 function uid() {
@@ -836,7 +835,7 @@ export default function App() {
                       onEdit={(t: any) => { setEditingTask(t); setIsNewTask(false); }}
                       onDelete={(id: string) => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((t: any) => t.id === id ? { ...t, _deleted: true } : t) }))}
                       onToggleCheck={(tid: string, cid: string) => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((t: any) => t.id === tid ? { ...t, checklist: (t.checklist || []).map((c: any) => c.id === cid ? { ...c, done: !c.done } : c) } : t) }))}
-                      onAddTask={(cid: string) => { setEditingTask({ id: uid(), title: "", columnId: cid, priority: "medium", checklist: [], notes: "", createdAt: new Date().toISOString().slice(0, 10), dueDate: "" }); setIsNewTask(true); }}
+                      onAddTask={(cid: string) => { setEditingTask({ id: uid(), title: "", columnId: cid, priority: "medium", checklist: [], notes: "", tags: [], createdAt: new Date().toISOString().slice(0, 10), dueDate: "" }); setIsNewTask(true); }}
                       onEditCol={(id: string, name: string) => updateProject((p: any) => ({ ...p, columns: p.columns.map((c: any) => c.id === id ? { ...c, name } : c) }))}
                       onDeleteCol={(id: string, name: string) => setConfirmDialog({ isOpen: true, title: "刪除階段欄位", message: `確定要刪除欄位「${name}」嗎？這將會隱藏該欄位下的所有任務。`, onConfirm: () => updateProject((p: any) => ({ ...p, columns: p.columns.filter((c: any) => c.id !== id) })) })}
                       totalCols={project.columns.length} onComplete={dropToDone}
@@ -1143,29 +1142,13 @@ export default function App() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">備註說明</label>
-                  <div className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus-within:bg-white dark:focus-within:bg-slate-800 focus-within:ring-4 focus-within:ring-blue-50 dark:focus-within:ring-blue-900/30 transition-all dark:text-white">
-                    <MentionsInput
-                      value={editingTask.notes || ""}
-                      onChange={(e, newValue) => setEditingTask({...editingTask, notes: newValue})}
-                      placeholder="補充更多細節... (輸入 @ 標註人員)"
-                      className="mentions-input"
-                      style={{
-                        control: { fontSize: 14, fontWeight: 500 },
-                        input: { padding: '14px 20px', outline: 'none', border: 'none' },
-                        highlighter: { padding: '14px 20px' },
-                        suggestions: {
-                          list: { backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
-                          item: { padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.05)', fontSize: 14 },
-                        }
-                      }}
-                    >
-                      <Mention
-                        trigger="@"
-                        data={users.map(u => ({ id: String(u.uid || u.id || ''), display: String(u.displayName || u.email || u.uid || u.id || 'Unknown') }))}
-                        style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '4px', padding: '0 2px' }}
-                      />
-                    </MentionsInput>
-                  </div>
+                  <textarea
+                    value={editingTask.notes || ""}
+                    onChange={e => setEditingTask({...editingTask, notes: e.target.value})}
+                    placeholder="補充更多細節..."
+                    rows={4}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3.5 text-sm font-medium focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-900/30 outline-none transition-all dark:text-white resize-none"
+                  />
                 </div>
               </div>
               <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex gap-4">
@@ -1188,7 +1171,7 @@ export default function App() {
                   <h3 className="text-xl font-black text-slate-900 dark:text-white">{viewingTask.title}</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setEditingTask(viewingTask); setViewingTask(null); }} className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 text-blue-500"><Edit3 size={20} /></button>
+                  <button onClick={() => { setEditingTask(viewingTask); setIsNewTask(false); setViewingTask(null); }} className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 text-blue-500"><Edit3 size={20} /></button>
                   <button onClick={() => setViewingTask(null)} className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400"><X size={20} /></button>
                 </div>
               </div>
