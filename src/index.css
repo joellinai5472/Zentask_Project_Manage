@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+.mentions-input {
+  width: 100%;
+}
+
+.mentions-input__control {
+  min-height: 100px;
+}
+
+.mentions-input__input {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.mentions-input__suggestions__list {
+  background-color: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.dark .mentions-input__suggestions__list {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.mentions-input__suggestions__item {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-size: 14px;
+  color: #334155;
+}
+
+.dark .mentions-input__suggestions__item {
+  color: #cbd5e1;
+  border-bottom-color: rgba(255,255,255,0.05);
+}
+
+.mentions-input__suggestions__item--focused {
+  background-color: #f1f5f9;
+}
+
+.dark .mentions-input__suggestions__item--focused {
+  background-color: #334155;
+}

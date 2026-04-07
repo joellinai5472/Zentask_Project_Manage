@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the shared workspace.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "displayName"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A Kanban project containing columns and tasks.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the project."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns this project."
+        },
+        "columns": {
+          "type": "array",
+          "description": "The columns in the project.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "color": { "type": "string" }
+            },
+            "required": ["id", "name", "color"]
+          }
+        },
+        "tasks": {
+          "type": "array",
+          "description": "The tasks in the project.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "columnId": { "type": "string" },
+              "priority": { "type": "string" },
+              "assigneeId": { "type": "string" },
+              "authorId": { "type": "string" },
+              "checklist": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "text": { "type": "string" },
+                    "done": { "type": "boolean" }
+                  },
+                  "required": ["id", "text", "done"]
+                }
+              },
+              "notes": { "type": "string" },
+              "createdAt": { "type": "string" },
+              "dueDate": { "type": "string" },
+              "completedAt": { "type": "string" },
+              "tags": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "_deleted": { "type": "boolean" }
+            },
+            "required": ["id", "title", "columnId", "priority", "checklist", "createdAt"]
+          }
+        }
+      },
+      "required": ["name", "ownerId", "columns", "tasks"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles."
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Stores user projects."
+    }
+  }
+}
