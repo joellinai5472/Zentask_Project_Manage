@@ -1249,7 +1249,7 @@ export default function App() {
                     >
                       <Mention
                         trigger="@"
-                        data={users.map(u => ({ id: u.uid, display: u.displayName }))}
+                        data={users.map(u => ({ id: u.uid, display: u.displayName || u.email || u.uid }))}
                         style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '4px', padding: '0 2px' }}
                       />
                     </MentionsInput>
