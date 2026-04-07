@@ -6,4 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
-.claude/
+.claude/*
+!.claude/memory/
+
+# Local Netlify folder
+.netlify
