@@ -1161,7 +1161,7 @@ export default function App() {
                     >
                       <Mention
                         trigger="@"
-                        data={users.map(u => ({ id: u.uid, display: u.displayName || u.email || u.uid }))}
+                        data={users.map(u => ({ id: String(u.uid || u.id || ''), display: String(u.displayName || u.email || u.uid || u.id || 'Unknown') }))}
                         style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', borderRadius: '4px', padding: '0 2px' }}
                       />
                     </MentionsInput>
