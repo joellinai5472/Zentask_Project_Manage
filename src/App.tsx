@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  Plus, Trash2, Edit3, X, Save, ChevronDown, ChevronRight,
+  Plus, Trash2, Edit3, X, Save, ChevronDown, ChevronRight, ChevronLeft,
   Download, Check, MoreHorizontal, FolderOpen, Square,
   CheckSquare, List, Columns3, Search, Calendar,
   Filter, LayoutDashboard, AlertTriangle,
@@ -61,6 +61,23 @@ const PRIORITIES = {
 };
 
 const DONE_COL_ID = "__done__";
+
+const PRESET_AVATARS = ['😊','😎','🤩','🦁','🐼','🦊','🐧','🦋','🌟','🚀','🎯','💡','🌈','⚡','🎨','🏆'];
+
+function isEmojiAvatar(str: string) {
+  if (!str || str.length > 4) return false;
+  return /^\p{Emoji}/u.test(str);
+}
+
+function buildCalendarDays(year: number, month: number): (number | null)[] {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(d);
+  while (days.length % 7 !== 0) days.push(null);
+  return days;
+}
 
 // --- Components ---
 
@@ -129,7 +146,9 @@ function KanbanCard({ task, onView, onEdit, onDelete, onToggleCheck, onComplete,
             )}
             {assignee && (
               <span className="text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-bold" title={assignee.displayName}>
-                {assignee.photoURL ? (
+                {isEmojiAvatar(assignee.photoURL) ? (
+                  <span className="text-[10px] leading-none">{assignee.photoURL}</span>
+                ) : assignee.photoURL ? (
                   <img src={assignee.photoURL} alt={assignee.displayName} className="w-3 h-3 rounded-full" referrerPolicy="no-referrer" />
                 ) : (
                   <UserIcon size={10} />
@@ -269,7 +288,8 @@ export default function App() {
   const [newColColor, setNewColColor] = useState("#3b82f6");
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [editingProfile, setEditingProfile] = useState({ displayName: "", photoURL: "" });
+  const [editingProfile, setEditingProfile] = useState({ displayName: "", photoURL: "", bio: "", role: "" });
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
 
   const handleUpdateProfile = async () => {
     if (!user) return;
@@ -277,6 +297,8 @@ export default function App() {
       await setDoc(doc(db, "users", user.uid), {
         displayName: editingProfile.displayName,
         photoURL: editingProfile.photoURL,
+        bio: editingProfile.bio,
+        role: editingProfile.role,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       setShowProfileModal(false);
@@ -528,6 +550,22 @@ export default function App() {
     return Array.from(tags);
   }, [project]);
 
+  const tasksByDate = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    filteredTasks.forEach((t: any) => {
+      if (t.dueDate) {
+        if (!map[t.dueDate]) map[t.dueDate] = [];
+        map[t.dueDate].push(t);
+      }
+    });
+    return map;
+  }, [filteredTasks]);
+
+  const nodueDateTasks = useMemo(() =>
+    filteredTasks.filter((t: any) => !t.dueDate && t.columnId !== DONE_COL_ID),
+    [filteredTasks]
+  );
+
   if (!user) {
     const handleEmailAuth = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -770,6 +808,7 @@ export default function App() {
             <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl flex">
               <button onClick={() => setView("board")} className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${view === "board" ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}><Columns3 size={14} /> 看板</button>
               <button onClick={() => setView("list")} className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${view === "list" ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}><List size={14} /> 列表</button>
+              <button onClick={() => setView("calendar")} className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${view === "calendar" ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}><Calendar size={14} /> 日曆</button>
             </div>
             <button 
               onClick={() => {
@@ -792,19 +831,26 @@ export default function App() {
                   const currentUserProfile = users.find(u => u.uid === user.uid);
                   setEditingProfile({
                     displayName: currentUserProfile?.displayName || user.displayName || "",
-                    photoURL: currentUserProfile?.photoURL || user.photoURL || ""
+                    photoURL: currentUserProfile?.photoURL || user.photoURL || "",
+                    bio: currentUserProfile?.bio || "",
+                    role: currentUserProfile?.role || ""
                   });
                   setShowProfileModal(true);
                 }}
                 className="flex items-center gap-2 p-1.5 pr-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
               >
-                {users.find(u => u.uid === user.uid)?.photoURL ? (
-                  <img src={users.find(u => u.uid === user.uid)?.photoURL} alt="User" className="w-8 h-8 rounded-xl object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    <UserIcon size={16} />
-                  </div>
-                )}
+                {(() => {
+                  const photoURL = users.find((u: any) => u.uid === user.uid)?.photoURL;
+                  return isEmojiAvatar(photoURL) ? (
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-lg">{photoURL}</div>
+                  ) : photoURL ? (
+                    <img src={photoURL} alt="User" className="w-8 h-8 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <UserIcon size={16} />
+                    </div>
+                  );
+                })()}
                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300 hidden sm:block max-w-[100px] truncate">
                   {users.find(u => u.uid === user.uid)?.displayName || "使用者"}
                 </span>
@@ -881,6 +927,84 @@ export default function App() {
                 </div>
               )}
             </div>
+          </div>
+        ) : view === "calendar" ? (
+          <div className="max-w-5xl mx-auto">
+            {/* Calendar Navigation */}
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1))} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+                <ChevronLeft size={20} />
+              </button>
+              <h2 className="text-lg font-black text-slate-800 dark:text-white">
+                {calendarDate.getFullYear()} 年 {calendarDate.getMonth() + 1} 月
+              </h2>
+              <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1))} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            {/* Day of week headers */}
+            <div className="grid grid-cols-7 mb-2">
+              {['日','一','二','三','四','五','六'].map(d => (
+                <div key={d} className="text-center text-xs font-black text-slate-400 dark:text-slate-500 py-2">{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {buildCalendarDays(calendarDate.getFullYear(), calendarDate.getMonth()).map((day, i) => {
+                if (!day) return <div key={i} className="min-h-[90px]" />;
+                const yr = calendarDate.getFullYear();
+                const mo = String(calendarDate.getMonth() + 1).padStart(2, '0');
+                const dateStr = `${yr}-${mo}-${String(day).padStart(2, '0')}`;
+                const dayTasks = tasksByDate[dateStr] || [];
+                const today = new Date();
+                const isToday = today.getFullYear() === yr && today.getMonth() === calendarDate.getMonth() && today.getDate() === day;
+                const MAX_VISIBLE = 3;
+                return (
+                  <div key={i} className={`min-h-[90px] rounded-2xl p-2 border transition-colors
+                    ${isToday
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
+                      : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600'}`}>
+                    <span className={`text-xs font-black block mb-1 ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {day}
+                    </span>
+                    {dayTasks.slice(0, MAX_VISIBLE).map((t: any) => (
+                      <button key={t.id} onClick={() => setViewingTask(t)}
+                        className={`w-full text-left text-[10px] font-bold px-1.5 py-0.5 rounded-md mb-0.5 truncate transition-opacity
+                          ${t.columnId === DONE_COL_ID
+                            ? 'opacity-40 line-through bg-slate-100 dark:bg-slate-700 text-slate-400'
+                            : t.priority === 'high' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 hover:opacity-80'
+                            : t.priority === 'medium' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:opacity-80'
+                            : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:opacity-80'}`}>
+                        {t.title}
+                      </button>
+                    ))}
+                    {dayTasks.length > MAX_VISIBLE && (
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">+{dayTasks.length - MAX_VISIBLE} 更多</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* No due date tasks */}
+            {nodueDateTasks.length > 0 && (
+              <div className="mt-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-6">
+                <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">未設截止日期</h3>
+                <div className="space-y-1">
+                  {nodueDateTasks.map((t: any) => (
+                    <button key={t.id} onClick={() => setViewingTask(t)}
+                      className="w-full text-left flex items-center gap-3 px-4 py-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-black border shrink-0 ${PRIORITIES[t.priority as keyof typeof PRIORITIES].color}`}>
+                        {PRIORITIES[t.priority as keyof typeof PRIORITIES].label}
+                      </span>
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="max-w-4xl mx-auto space-y-4">
@@ -1287,36 +1411,99 @@ export default function App() {
         {showProfileModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowProfileModal(false)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-sm z-[60] p-8 space-y-6 border border-slate-100 dark:border-slate-700">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">編輯個人資料</h3>
-              <div className="space-y-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md z-[60] border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-8 pt-8 pb-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white">編輯個人資料</h3>
+                <button onClick={() => setShowProfileModal(false)} className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400"><X size={18} /></button>
+              </div>
+              <div className="p-8 space-y-5 overflow-y-auto">
+                {/* 頭像預覽 */}
+                <div className="flex justify-center">
+                  {isEmojiAvatar(editingProfile.photoURL) ? (
+                    <div className="w-20 h-20 rounded-3xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-5xl">{editingProfile.photoURL}</div>
+                  ) : editingProfile.photoURL ? (
+                    <img src={editingProfile.photoURL} alt="Preview" className="w-20 h-20 rounded-3xl object-cover border-2 border-slate-200 dark:border-slate-700" referrerPolicy="no-referrer" onError={e => (e.currentTarget.style.display = 'none')} />
+                  ) : (
+                    <div className="w-20 h-20 rounded-3xl bg-blue-100 dark:bg-blue-900/50 text-blue-500 flex items-center justify-center">
+                      <UserIcon size={32} />
+                    </div>
+                  )}
+                </div>
+
+                {/* 預設 emoji 頭像 */}
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">選擇預設頭像</label>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {PRESET_AVATARS.map(emoji => (
+                      <button key={emoji} onClick={() => setEditingProfile(p => ({ ...p, photoURL: emoji }))}
+                        className={`w-9 h-9 rounded-xl text-xl flex items-center justify-center transition-all
+                          ${editingProfile.photoURL === emoji
+                            ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30 scale-110'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 上傳圖片 */}
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">上傳圖片（限 200KB）</label>
+                  <input type="file" accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 200 * 1024) { alert('圖片請限制在 200KB 以內'); e.target.value = ''; return; }
+                      const reader = new FileReader();
+                      reader.onload = () => setEditingProfile(p => ({ ...p, photoURL: reader.result as string }));
+                      reader.readAsDataURL(file);
+                    }}
+                    className="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 dark:file:bg-slate-700 file:text-slate-700 dark:file:text-slate-300 file:px-3 file:py-2 file:text-xs file:font-bold cursor-pointer"
+                  />
+                </div>
+
+                {/* 貼上網址 */}
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">或貼上圖片網址</label>
+                  <input type="text"
+                    value={isEmojiAvatar(editingProfile.photoURL) || editingProfile.photoURL.startsWith('data:') ? '' : editingProfile.photoURL}
+                    onChange={e => setEditingProfile(p => ({ ...p, photoURL: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white"
+                  />
+                </div>
+
+                {/* 顯示名稱 */}
                 <div>
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">顯示名稱</label>
-                  <input 
-                    type="text" 
-                    value={editingProfile.displayName} 
-                    onChange={e => setEditingProfile({ ...editingProfile, displayName: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white"
+                  <input type="text" value={editingProfile.displayName}
+                    onChange={e => setEditingProfile(p => ({ ...p, displayName: e.target.value }))}
                     placeholder="輸入您的顯示名稱"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">頭像網址 (選填)</label>
-                  <input 
-                    type="text" 
-                    value={editingProfile.photoURL} 
-                    onChange={e => setEditingProfile({ ...editingProfile, photoURL: e.target.value })}
                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white"
-                    placeholder="https://..."
                   />
                 </div>
-                {editingProfile.photoURL && (
-                  <div className="flex justify-center pt-2">
-                    <img src={editingProfile.photoURL} alt="Preview" className="w-16 h-16 rounded-2xl object-cover border-2 border-slate-200 dark:border-slate-700" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                  </div>
-                )}
+
+                {/* 職稱 */}
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">職稱 / 角色（選填）</label>
+                  <input type="text" value={editingProfile.role}
+                    onChange={e => setEditingProfile(p => ({ ...p, role: e.target.value }))}
+                    placeholder="例如：設計師、PM、工程師..."
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white"
+                  />
+                </div>
+
+                {/* 自我介紹 */}
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">自我介紹（選填）</label>
+                  <textarea rows={2} value={editingProfile.bio}
+                    onChange={e => setEditingProfile(p => ({ ...p, bio: e.target.value }))}
+                    placeholder="簡短介紹自己..."
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white resize-none"
+                  />
+                </div>
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex gap-3">
                 <button onClick={() => setShowProfileModal(false)} className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">取消</button>
                 <button onClick={handleUpdateProfile} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-black text-sm hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-blue-900/20 transition-all">儲存變更</button>
               </div>
