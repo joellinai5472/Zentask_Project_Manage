@@ -306,7 +306,9 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: "", photoURL: "", bio: "", role: "" });
   const [calendarDate, setCalendarDate] = useState(() => new Date());
-  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem("zentask_col_widths") || "{}"); } catch { return {}; }
+  });
   const resizingRef = useRef<{ colId: string; startX: number; startW: number } | null>(null);
 
   const startColResize = (e: React.MouseEvent, colId: string) => {
@@ -316,7 +318,11 @@ export default function App() {
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
       const w = Math.max(200, Math.min(600, resizingRef.current.startW + ev.clientX - resizingRef.current.startX));
-      setColWidths(prev => ({ ...prev, [resizingRef.current!.colId]: w }));
+      setColWidths(prev => {
+        const next = { ...prev, [resizingRef.current!.colId]: w };
+        localStorage.setItem("zentask_col_widths", JSON.stringify(next));
+        return next;
+      });
     };
     const onUp = () => {
       resizingRef.current = null;
