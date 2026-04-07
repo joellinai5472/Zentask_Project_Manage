@@ -1392,12 +1392,28 @@ export default function App() {
                     <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2"><CheckSquare size={14} /> 檢查清單</h4>
                     <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800">
                       <ProgressBar checklist={viewingTask.checklist} />
-                      <div className="mt-4 space-y-3">
+                      <div className="mt-4 space-y-2">
                         {viewingTask.checklist.map((c: any) => (
-                          <div key={c.id} className="flex items-start gap-3">
-                            {c.done ? <CheckSquare size={18} className="text-emerald-500 shrink-0 mt-0.5" /> : <Square size={18} className="text-slate-300 dark:text-slate-600 shrink-0 mt-0.5" />}
+                          <button key={c.id}
+                            onClick={() => {
+                              updateProject((p: any) => ({
+                                ...p,
+                                tasks: p.tasks.map((t: any) => t.id === viewingTask.id
+                                  ? { ...t, checklist: t.checklist.map((ck: any) => ck.id === c.id ? { ...ck, done: !ck.done } : ck) }
+                                  : t
+                                )
+                              }));
+                              setViewingTask((prev: any) => ({
+                                ...prev,
+                                checklist: prev.checklist.map((ck: any) => ck.id === c.id ? { ...ck, done: !ck.done } : ck)
+                              }));
+                            }}
+                            className="w-full flex items-start gap-3 text-left group/ck hover:bg-white dark:hover:bg-slate-800/60 rounded-xl px-2 py-1.5 transition-colors">
+                            {c.done
+                              ? <CheckSquare size={18} className="text-emerald-500 shrink-0 mt-0.5" />
+                              : <Square size={18} className="text-slate-300 dark:text-slate-600 group-hover/ck:text-slate-400 dark:group-hover/ck:text-slate-500 shrink-0 mt-0.5" />}
                             <span className={`text-sm font-medium ${c.done ? "text-slate-400 dark:text-slate-500 line-through" : "text-slate-700 dark:text-slate-200"}`}>{c.text}</span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
