@@ -157,7 +157,7 @@ function KanbanCard({ task, onView, onEdit, onDelete, onToggleCheck, onComplete,
               </span>
             )}
           </div>
-          <h4 className={`text-sm font-bold leading-tight ${isDone ? "text-gray-400 dark:text-slate-500 line-through" : "text-gray-800 dark:text-slate-100"}`}>{task.title}</h4>
+          <h4 className={`text-sm font-bold leading-tight truncate ${isDone ? "text-gray-400 dark:text-slate-500 line-through" : "text-gray-800 dark:text-slate-100"}`}>{task.title}</h4>
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
           <div className="p-1.5 rounded-lg text-slate-300 dark:text-slate-500 cursor-grab active:cursor-grabbing hover:bg-slate-50 dark:hover:bg-slate-700 hidden sm:block">
@@ -932,28 +932,37 @@ export default function App() {
           <div className="max-w-5xl mx-auto">
             {/* Calendar Navigation */}
             <div className="flex items-center justify-between mb-6">
-              <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1))} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
-                <ChevronLeft size={20} />
-              </button>
-              <h2 className="text-lg font-black text-slate-800 dark:text-white">
-                {calendarDate.getFullYear()} 年 {calendarDate.getMonth() + 1} 月
-              </h2>
-              <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1))} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
-                <ChevronRight size={20} />
+              <div className="flex items-center gap-2">
+                <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1))} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+                  <ChevronLeft size={20} />
+                </button>
+                <h2 className="text-lg font-black text-slate-800 dark:text-white">
+                  {calendarDate.getFullYear()} 年 {calendarDate.getMonth() + 1} 月
+                </h2>
+                <button onClick={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1))} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+              <button
+                onClick={() => { setEditingTask({ id: uid(), title: "", columnId: project.columns[0].id, priority: "medium", checklist: [], notes: "", tags: [], createdAt: new Date().toISOString().slice(0, 10), dueDate: "" }); setIsNewTask(true); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-colors shadow-sm">
+                <Plus size={16} /> 新增任務
               </button>
             </div>
 
             {/* Day of week headers */}
             <div className="grid grid-cols-7 mb-2">
-              {['日','一','二','三','四','五','六'].map(d => (
-                <div key={d} className="text-center text-xs font-black text-slate-400 dark:text-slate-500 py-2">{d}</div>
+              {['日','一','二','三','四','五','六'].map((d, idx) => (
+                <div key={d} className={`text-center text-xs font-black py-2 ${idx === 0 ? 'text-rose-400 dark:text-rose-500' : idx === 6 ? 'text-blue-400 dark:text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>{d}</div>
               ))}
             </div>
 
             {/* Calendar grid */}
             <div className="grid grid-cols-7 gap-1.5">
               {buildCalendarDays(calendarDate.getFullYear(), calendarDate.getMonth()).map((day, i) => {
-                if (!day) return <div key={i} className="min-h-[90px]" />;
+                const dow = i % 7; // 0=Sun, 6=Sat
+                const isWeekend = dow === 0 || dow === 6;
+                if (!day) return <div key={i} className={`min-h-[90px] rounded-2xl ${isWeekend ? 'bg-slate-50/60 dark:bg-slate-800/30' : ''}`} />;
                 const yr = calendarDate.getFullYear();
                 const mo = String(calendarDate.getMonth() + 1).padStart(2, '0');
                 const dateStr = `${yr}-${mo}-${String(day).padStart(2, '0')}`;
@@ -962,13 +971,28 @@ export default function App() {
                 const isToday = today.getFullYear() === yr && today.getMonth() === calendarDate.getMonth() && today.getDate() === day;
                 const MAX_VISIBLE = 3;
                 return (
-                  <div key={i} className={`min-h-[90px] rounded-2xl p-2 border transition-colors
+                  <div key={i} className={`group/day min-h-[90px] rounded-2xl p-2 border transition-colors
                     ${isToday
                       ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
-                      : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600'}`}>
-                    <span className={`text-xs font-black block mb-1 ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                      {day}
-                    </span>
+                      : isWeekend
+                        ? dow === 0
+                          ? 'bg-rose-50/60 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/30 hover:border-rose-200 dark:hover:border-rose-800/50'
+                          : 'bg-sky-50/60 dark:bg-sky-900/10 border-sky-100 dark:border-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800/50'
+                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs font-black
+                        ${isToday ? 'text-blue-600 dark:text-blue-400'
+                          : dow === 0 ? 'text-rose-500 dark:text-rose-400'
+                          : dow === 6 ? 'text-sky-500 dark:text-sky-400'
+                          : 'text-slate-500 dark:text-slate-400'}`}>
+                        {day}
+                      </span>
+                      <button
+                        onClick={() => { setEditingTask({ id: uid(), title: "", columnId: project.columns[0].id, priority: "medium", checklist: [], notes: "", tags: [], createdAt: new Date().toISOString().slice(0, 10), dueDate: dateStr }); setIsNewTask(true); }}
+                        className="opacity-0 group-hover/day:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-400 dark:text-slate-500 hover:text-blue-500 transition-all">
+                        <Plus size={11} />
+                      </button>
+                    </div>
                     {dayTasks.slice(0, MAX_VISIBLE).map((t: any) => (
                       <button key={t.id} onClick={() => setViewingTask(t)}
                         className={`w-full text-left text-[10px] font-bold px-1.5 py-0.5 rounded-md mb-0.5 truncate transition-opacity
@@ -1030,34 +1054,19 @@ export default function App() {
                             <div className="px-6 py-8 text-center text-sm font-bold text-slate-300 dark:text-slate-600">此階段尚無任務</div>
                           ) : (
                             colTasks.map((t: any) => (
-                              <div key={t.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+                              <div key={t.id} className="px-6 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
                                 <button onClick={() => dropToDone(t.id)} className="w-6 h-6 rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black border ${PRIORITIES[t.priority as keyof typeof PRIORITIES].color}`}>{PRIORITIES[t.priority as keyof typeof PRIORITIES].label}</span>
-                                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{t.title}</h4>
-                                    {t.assigneeId && (
-                                      <span className="text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-bold ml-2">
-                                        <UserIcon size={10} />
-                                        <span className="truncate max-w-[60px]">{users.find((u: any) => u.uid === t.assigneeId)?.displayName || "未知"}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                  {t.notes && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{renderNotesWithMentions(t.notes)}</p>}
-                                </div>
-                                <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {t.dueDate ? (
-                                    <span className={`text-[10px] px-2 py-1 rounded-lg border ${getDueDateColor(t.dueDate, false)}`}>
-                                      <Calendar size={10} className="inline mr-1 mb-0.5" />{t.dueDate}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] font-bold text-slate-300 dark:text-slate-500">{t.createdAt}</span>
-                                  )}
-                                  <div className="flex gap-1">
-                                    <button onClick={() => setViewingTask(t)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500"><Eye size={14} /></button>
-                                    <button onClick={() => setEditingTask(t)} className="p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"><Edit3 size={14} /></button>
-                                    <button onClick={() => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((task: any) => task.id === t.id ? { ...task, _deleted: true } : task) }))} className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400"><Trash2 size={14} /></button>
-                                  </div>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black border shrink-0 ${PRIORITIES[t.priority as keyof typeof PRIORITIES].color}`}>{PRIORITIES[t.priority as keyof typeof PRIORITIES].label}</span>
+                                {t.dueDate && (
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-md border shrink-0 flex items-center gap-1 ${getDueDateColor(t.dueDate, false)}`}>
+                                    <Calendar size={9} />{t.dueDate}
+                                  </span>
+                                )}
+                                <h4 className="flex-1 text-sm font-bold text-slate-800 dark:text-slate-200 truncate min-w-0">{t.title}</h4>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <button onClick={() => setViewingTask(t)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500"><Eye size={14} /></button>
+                                  <button onClick={() => setEditingTask(t)} className="p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"><Edit3 size={14} /></button>
+                                  <button onClick={() => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((task: any) => task.id === t.id ? { ...task, _deleted: true } : task) }))} className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400"><Trash2 size={14} /></button>
                                 </div>
                               </div>
                             ))
@@ -1087,21 +1096,15 @@ export default function App() {
                         <div className="px-6 py-8 text-center text-sm font-bold text-slate-300 dark:text-slate-600">尚無已完成任務</div>
                       ) : (
                         doneTasks.map((t: any) => (
-                          <div key={t.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group opacity-75">
+                          <div key={t.id} className="px-6 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group opacity-70">
                             <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0"><Check size={14} className="text-white" strokeWidth={3}/></div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black border ${PRIORITIES[t.priority as keyof typeof PRIORITIES].color}`}>{PRIORITIES[t.priority as keyof typeof PRIORITIES].label}</span>
-                                <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400 line-through truncate">{t.title}</h4>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <span className="text-[10px] font-bold text-emerald-500">✓ {t.completedAt}</span>
-                              <div className="flex gap-1">
-                                <button onClick={() => setViewingTask(t)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500"><Eye size={14} /></button>
-                                <button onClick={() => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((task: any) => task.id === t.id ? { ...task, columnId: project.columns[0].id } : task) }))} className="px-3 py-1.5 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold">恢復</button>
-                                <button onClick={() => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((task: any) => task.id === t.id ? { ...task, _deleted: true } : task) }))} className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400"><Trash2 size={14} /></button>
-                              </div>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-black border shrink-0 ${PRIORITIES[t.priority as keyof typeof PRIORITIES].color}`}>{PRIORITIES[t.priority as keyof typeof PRIORITIES].label}</span>
+                            <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 shrink-0">✓ {t.completedAt}</span>
+                            <h4 className="flex-1 text-sm font-bold text-slate-500 dark:text-slate-400 line-through truncate min-w-0">{t.title}</h4>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <button onClick={() => setViewingTask(t)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500"><Eye size={14} /></button>
+                              <button onClick={() => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((task: any) => task.id === t.id ? { ...task, columnId: project.columns[0].id } : task) }))} className="px-3 py-1.5 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold">恢復</button>
+                              <button onClick={() => updateProject((p: any) => ({ ...p, tasks: p.tasks.map((task: any) => task.id === t.id ? { ...task, _deleted: true } : task) }))} className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 text-red-400"><Trash2 size={14} /></button>
                             </div>
                           </div>
                         ))
