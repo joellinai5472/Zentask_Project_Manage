@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Plus, Trash2, Edit3, X, Save, ChevronDown, ChevronRight, ChevronLeft,
   Download, Check, MoreHorizontal, FolderOpen, Square,
@@ -132,32 +132,48 @@ function KanbanCard({ task, onView, onEdit, onDelete, onToggleCheck, onComplete,
       {dropPos === "bottom" && <div className="absolute -bottom-1.5 left-0 right-0 h-1 bg-blue-500 rounded-full z-10" />}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${priority.color}`}>{priority.label}</span>
-            {task.tags && task.tags.map((tag: string) => (
-              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 flex items-center gap-1">
-                <Tag size={10} /> {tag}
-              </span>
-            ))}
-            {task.dueDate && (
-              <span className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded border ${getDueDateColor(task.dueDate, isDone)}`}>
-                <Calendar size={10} /> {task.dueDate}
-              </span>
-            )}
-            {assignee && (
-              <span className="text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-bold" title={assignee.displayName}>
-                {isEmojiAvatar(assignee.photoURL) ? (
-                  <span className="text-[10px] leading-none">{assignee.photoURL}</span>
-                ) : assignee.photoURL ? (
-                  <img src={assignee.photoURL} alt={assignee.displayName} className="w-3 h-3 rounded-full" referrerPolicy="no-referrer" />
-                ) : (
-                  <UserIcon size={10} />
+          {isCompact ? (
+            <>
+              <h4 className={`text-sm font-bold leading-tight truncate mb-1.5 ${isDone ? "text-gray-400 dark:text-slate-500 line-through" : "text-gray-800 dark:text-slate-100"}`}>{task.title}</h4>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${priority.color}`}>{priority.label}</span>
+                {task.dueDate && (
+                  <span className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded border ${getDueDateColor(task.dueDate, isDone)}`}>
+                    <Calendar size={10} /> {task.dueDate}
+                  </span>
                 )}
-                <span className="truncate max-w-[60px]">{assignee.displayName}</span>
-              </span>
-            )}
-          </div>
-          <h4 className={`text-sm font-bold leading-tight truncate ${isDone ? "text-gray-400 dark:text-slate-500 line-through" : "text-gray-800 dark:text-slate-100"}`}>{task.title}</h4>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${priority.color}`}>{priority.label}</span>
+                {task.tags && task.tags.map((tag: string) => (
+                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 flex items-center gap-1">
+                    <Tag size={10} /> {tag}
+                  </span>
+                ))}
+                {task.dueDate && (
+                  <span className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded border ${getDueDateColor(task.dueDate, isDone)}`}>
+                    <Calendar size={10} /> {task.dueDate}
+                  </span>
+                )}
+                {assignee && (
+                  <span className="text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 font-bold" title={assignee.displayName}>
+                    {isEmojiAvatar(assignee.photoURL) ? (
+                      <span className="text-[10px] leading-none">{assignee.photoURL}</span>
+                    ) : assignee.photoURL ? (
+                      <img src={assignee.photoURL} alt={assignee.displayName} className="w-3 h-3 rounded-full" referrerPolicy="no-referrer" />
+                    ) : (
+                      <UserIcon size={10} />
+                    )}
+                    <span className="truncate max-w-[60px]">{assignee.displayName}</span>
+                  </span>
+                )}
+              </div>
+              <h4 className={`text-sm font-bold leading-tight truncate ${isDone ? "text-gray-400 dark:text-slate-500 line-through" : "text-gray-800 dark:text-slate-100"}`}>{task.title}</h4>
+            </>
+          )}
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
           <div className="p-1.5 rounded-lg text-slate-300 dark:text-slate-500 cursor-grab active:cursor-grabbing hover:bg-slate-50 dark:hover:bg-slate-700 hidden sm:block">
@@ -290,6 +306,26 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: "", photoURL: "", bio: "", role: "" });
   const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const resizingRef = useRef<{ colId: string; startX: number; startW: number } | null>(null);
+
+  const startColResize = (e: React.MouseEvent, colId: string) => {
+    e.preventDefault();
+    const startW = colWidths[colId] ?? 320;
+    resizingRef.current = { colId, startX: e.clientX, startW };
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const w = Math.max(200, Math.min(600, resizingRef.current.startW + ev.clientX - resizingRef.current.startX));
+      setColWidths(prev => ({ ...prev, [resizingRef.current!.colId]: w }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const handleUpdateProfile = async () => {
     if (!user) return;
@@ -874,8 +910,8 @@ export default function App() {
             <div className="flex-1 overflow-x-auto pb-4">
               <div className="flex gap-6 h-full min-h-[500px]">
                 {project.columns.map((col: any) => (
-                  <div key={col.id} className="w-80 shrink-0">
-                    <KanbanColumn 
+                  <div key={col.id} className="relative shrink-0 h-full" style={{ width: colWidths[col.id] ?? 320 }}>
+                    <KanbanColumn
                       col={col} tasks={activeTasks.filter((t: any) => t.columnId === col.id)} onDrop={dropToCol}
                       onView={setViewingTask}
                       onEdit={(t: any) => { setEditingTask(t); setIsNewTask(false); }}
@@ -887,11 +923,16 @@ export default function App() {
                       totalCols={project.columns.length} onComplete={dropToDone}
                       density={density} onDropOnTask={dropToTask} users={users}
                     />
+                    <div
+                      onMouseDown={e => startColResize(e, col.id)}
+                      className="absolute top-0 right-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400/30 dark:hover:bg-blue-500/20 rounded-full z-20 transition-colors"
+                      title="拖曳調整欄位寬度"
+                    />
                   </div>
                 ))}
-                <button onClick={() => setShowAddCol(true)} className="w-80 shrink-0 rounded-3xl border-2 border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-blue-500 group">
-                  <div className="p-4 rounded-2xl bg-white shadow-sm group-hover:scale-110 transition-transform"><Plus size={24} /></div>
-                  <span className="text-sm font-black">新增階段欄位</span>
+                <button onClick={() => setShowAddCol(true)} title="新增階段欄位" className="shrink-0 w-10 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all flex flex-col items-center justify-center gap-2 text-slate-300 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 group">
+                  <Plus size={16} className="group-hover:scale-125 transition-transform" />
+                  <span className="text-[9px] font-black [writing-mode:vertical-lr] tracking-widest">新增欄位</span>
                 </button>
               </div>
             </div>
