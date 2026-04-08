@@ -269,8 +269,8 @@ export default function App() {
   const { user, signInWithGoogle, loginWithEmail, registerWithEmail, logout } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState("");
-  const [view, setView] = useState("board");
+  const [activeProjectId, setActiveProjectId] = useState(() => localStorage.getItem("zentask_active_project") || "");
+  const [view, setView] = useState(() => localStorage.getItem("zentask_view") || "board");
   const [showSidebar, setShowSidebar] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [isNewTask, setIsNewTask] = useState(false);
@@ -294,7 +294,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState("default");
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
-  const [density, setDensity] = useState("detailed");
+  const [density, setDensity] = useState(() => localStorage.getItem("zentask_density") || "detailed");
   const [viewingTask, setViewingTask] = useState<any>(null);
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [theme, setTheme] = useState(() => localStorage.getItem("zentask_theme") || "light");
@@ -317,9 +317,10 @@ export default function App() {
     resizingRef.current = { colId, startX: e.clientX, startW };
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
-      const w = Math.max(200, Math.min(600, resizingRef.current.startW + ev.clientX - resizingRef.current.startX));
+      const { colId, startW, startX } = resizingRef.current;
+      const w = Math.max(200, Math.min(600, startW + ev.clientX - startX));
       setColWidths(prev => {
-        const next = { ...prev, [resizingRef.current!.colId]: w };
+        const next = { ...prev, [colId]: w };
         localStorage.setItem("zentask_col_widths", JSON.stringify(next));
         return next;
       });
@@ -394,6 +395,10 @@ export default function App() {
     }
     localStorage.setItem("zentask_theme", theme);
   }, [theme]);
+
+  useEffect(() => { if (activeProjectId) localStorage.setItem("zentask_active_project", activeProjectId); }, [activeProjectId]);
+  useEffect(() => { localStorage.setItem("zentask_view", view); }, [view]);
+  useEffect(() => { localStorage.setItem("zentask_density", density); }, [density]);
 
   const project = projects.find(p => p.id === activeProjectId) || projects[0];
   
